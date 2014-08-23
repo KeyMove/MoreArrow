@@ -1,0 +1,5 @@
+## YAML Template.
+---
+name: MoreArrow
+main: morearrow.MoreArrow
+version: 1.0.0
