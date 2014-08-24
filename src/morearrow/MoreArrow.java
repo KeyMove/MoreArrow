@@ -1,10 +1,13 @@
 package morearrow;
 
+import java.io.File;
 import static java.lang.System.out;
 import java.util.HashMap;
 import java.util.Map;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
@@ -13,6 +16,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
@@ -23,18 +28,19 @@ import org.bukkit.util.Vector;
  */
 public class MoreArrow extends JavaPlugin{
         
-        Map 玩家缓存列表=new HashMap();
+        YamlConfiguration 配置文件;
+        Map<String,箭效果> 玩家缓存列表=new HashMap<>();
         private void 加入缓存列表(Player 玩家,箭效果 值){
-            玩家缓存列表.put(玩家, 值);
+            玩家缓存列表.put(玩家.getName(), 值);
         }
         private boolean 检测是否在列表中(Player 玩家){
-            return 玩家缓存列表.get(玩家) != null;
+            return 玩家缓存列表.get(玩家.getName()) != null;
         }
         private 箭效果 获取缓存数据(Player 玩家){
-            return (箭效果)玩家缓存列表.get(玩家);
+            return (箭效果)玩家缓存列表.get(玩家.getName());
         }
         private void 从缓存列表中删除(Player 玩家){
-            玩家缓存列表.remove(玩家);
+            玩家缓存列表.remove(玩家.getName());
         }
         
     
@@ -116,8 +122,36 @@ public class MoreArrow extends JavaPlugin{
             }
     }
 
+    public void 加载配置文件(){
+        File 配置=new File(getDataFolder(),"config.yml");
+        if(!配置.exists())
+        {
+            this.saveDefaultConfig();
+            配置=new File(getDataFolder(),"config.yml");
+        }
+        配置文件=YamlConfiguration.loadConfiguration(配置);
+    }
+    public void 加载合成公式(){
+        ItemStack 弓=new ItemStack(Material.BOW);
+        ShapedRecipe 合成公式=new ShapedRecipe(弓);
+        String 合成公式字符串=配置文件.getString("Bow.Recipe");
+        String 段字符串[]=new String[3];
+        段字符串[0]=合成公式字符串.substring(0, 3);
+        段字符串[1]=合成公式字符串.substring(3, 6);
+        段字符串[2]=合成公式字符串.substring(6, 9);
+        合成公式.shape(段字符串);
+        for(int i=0;i<合成公式字符串.length();i++){
+            if(合成公式字符串.charAt(i)!='X'){
+                int ID=配置文件.getInt("Bow."+合成公式字符串.charAt(i));
+                合成公式.setIngredient(合成公式字符串.charAt(i), new ItemStack(ID).getType());
+            }
+        }
+        getServer().addRecipe(合成公式);
+    }
     @Override
     public void onEnable() {
+        加载配置文件();
+        加载合成公式();
         out.print("更多的箭已载入！");
         getServer().getPluginManager().registerEvents(new 事件监听器(), this);
     }
