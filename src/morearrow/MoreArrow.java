@@ -2,7 +2,9 @@ package morearrow;
 
 import java.io.File;
 import static java.lang.System.out;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -15,9 +17,12 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.ShapedRecipe;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
@@ -54,18 +59,33 @@ public class MoreArrow extends JavaPlugin{
             }
             Entity 箭=事件.getProjectile();
             Player 玩家=(Player)事件.getEntity();
+            ItemMeta 物品属性=玩家.getItemInHand().getItemMeta();
+            if(物品属性.getDisplayName()==null)
+                return;
+            if(!物品属性.getDisplayName().equalsIgnoreCase("§6§n制导弓"))
+                return;
+            if(玩家.isSneaking()){
+                return;
+            }
             箭效果 效果=new 箭效果(玩家,箭);
             加入缓存列表(玩家,效果);
             效果.创建箭效果();
         }
         @EventHandler
         public void 箭击中事件(ProjectileHitEvent 事件){
-            Entity 玩家=事件.getEntity().getVehicle();
-            if(玩家==null)
+            Entity 玩家=事件.getEntity().getShooter();
+            if(!(玩家 instanceof Player))
                 return;
             if(!检测是否在列表中((Player)玩家))
                 return;
+            箭效果 效果=获取缓存数据((Player)玩家);
+            效果.玩家状态=false;
             从缓存列表中删除((Player)玩家);
+            玩家.eject();
+            玩家.teleport(效果.玩家位置);
+            Location 爆炸点=效果.箭.getLocation();
+            爆炸点.getWorld().createExplosion(爆炸点.getBlockX(), 爆炸点.getBlockY(), 爆炸点.getBlockZ(), 2, false, false);
+            效果.箭.remove();
         }
         @EventHandler
         public void 玩家切换潜行事件(PlayerToggleSneakEvent 事件){
@@ -74,9 +94,29 @@ public class MoreArrow extends JavaPlugin{
             {
                 箭效果 效果=获取缓存数据(玩家);
                 效果.玩家状态=false;
-                效果.触发玩家.eject();
-                效果.触发玩家.teleport(效果.玩家位置);
+                玩家.teleport(效果.玩家位置);
                 从缓存列表中删除(玩家);
+                Location 爆炸点=效果.箭.getLocation();
+                爆炸点.getWorld().createExplosion(爆炸点.getBlockX(), 爆炸点.getBlockY(), 爆炸点.getBlockZ(), 2, false, false);
+                效果.箭.remove();
+            }
+        }
+        @EventHandler
+        public void 玩家操作事件(PlayerInteractEvent 事件){
+            Player 玩家=事件.getPlayer();
+            if(检测是否在列表中(玩家))
+            {
+                玩家.sendMessage("飞行状态中无法操作!");
+                事件.setCancelled(true);
+            }
+        }
+        @EventHandler
+        public void 玩家丢弃物品事件(PlayerDropItemEvent 事件){
+            Player 玩家=事件.getPlayer();
+            if(检测是否在列表中(玩家))
+            {
+                玩家.sendMessage("飞行状态中无法操作!");
+                事件.setCancelled(true);
             }
         }
     }
@@ -100,15 +140,20 @@ public class MoreArrow extends JavaPlugin{
             public void run() {
                 int 循环计数=0;
                 Vector 运动矢量;
-                while(循环计数<200)
+                while(循环计数<100)
                 {
-                    运动矢量=触发玩家.getLocation().getDirection();
-                    运动矢量.multiply(2/运动矢量.length());
-                    箭.setVelocity(运动矢量);
                     if(!玩家状态)
                     {
                         return;
                     }
+                    if(触发玩家.isDead()||(!触发玩家.isInsideVehicle()))
+                    {
+                        out.print("break");
+                        return;
+                    }
+                    运动矢量=触发玩家.getLocation().getDirection();
+                    运动矢量.multiply(2/运动矢量.length());
+                    箭.setVelocity(运动矢量);
                     循环计数++;
                     try {
                         Thread.sleep(50);
@@ -133,6 +178,12 @@ public class MoreArrow extends JavaPlugin{
     }
     public void 加载合成公式(){
         ItemStack 弓=new ItemStack(Material.BOW);
+        List<String> Lore数据=new ArrayList<>();
+        Lore数据.add("§r§4玩家能操纵箭的飞行方向");
+        ItemMeta 物品属性=弓.getItemMeta();
+        物品属性.setLore(Lore数据);
+        物品属性.setDisplayName("§6§n制导弓");
+        弓.setItemMeta(物品属性);
         ShapedRecipe 合成公式=new ShapedRecipe(弓);
         String 合成公式字符串=配置文件.getString("Bow.Recipe");
         String 段字符串[]=new String[3];
