@@ -88,20 +88,6 @@ public class MoreArrow extends JavaPlugin{
             效果.箭.remove();
         }
         @EventHandler
-        public void 玩家切换潜行事件(PlayerToggleSneakEvent 事件){
-            Player 玩家=事件.getPlayer();
-            if(检测是否在列表中(玩家))
-            {
-                箭效果 效果=获取缓存数据(玩家);
-                效果.玩家状态=false;
-                玩家.teleport(效果.玩家位置);
-                从缓存列表中删除(玩家);
-                Location 爆炸点=效果.箭.getLocation();
-                爆炸点.getWorld().createExplosion(爆炸点.getBlockX(), 爆炸点.getBlockY(), 爆炸点.getBlockZ(), 2, false, false);
-                效果.箭.remove();
-            }
-        }
-        @EventHandler
         public void 玩家操作事件(PlayerInteractEvent 事件){
             Player 玩家=事件.getPlayer();
             if(检测是否在列表中(玩家))
@@ -148,6 +134,11 @@ public class MoreArrow extends JavaPlugin{
                     }
                     if(触发玩家.isDead()||(!触发玩家.isInsideVehicle()))
                     {
+                        if(检测是否在列表中(触发玩家))
+                        {
+                            ProjectileHitEvent event=new ProjectileHitEvent((Projectile)箭);
+                            Bukkit.getServer().getPluginManager().callEvent(event);
+                        }
                         out.print("break");
                         return;
                     }
